@@ -1,5 +1,5 @@
 # badwm
----  
+
 ## Description  
 badwm is a simple tiling window manager, based on TinyWM and mosterwm
 
