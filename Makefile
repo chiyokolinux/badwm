@@ -3,7 +3,7 @@
 VERSION = 0.4.2
 WMNAME  = badwm
 
-PREFIX ?= /usr/local
+PREFIX ?= /usr
 BINDIR ?= ${PREFIX}/bin
 
 X11INC = -I/usr/X11R6/include
