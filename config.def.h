@@ -4,7 +4,7 @@
 /* Config goes here */
 
 // Gaps between windows in pixels. Can be 0 for no gaps
-#define GAPS 12
+#define GAPS 8
 
 // This defines the mod key.
 // Every shortcut may only define for example #define RAISE_WINDOW T
@@ -19,7 +19,7 @@
 #define TOP_PANEL       False     /* False means panel is on bottom */
 #define PANEL_HEIGHT    24        /* 0 for no space for panel, thus no panel */
 #define PANEL_INTERVAL	600	  /* milliseconds to wait after redrawing the bar when no event has happened. this is to save cpu. */
-#define BADWM_PANEL		  /* if defined, badwm draws a simple panel showing the time */
+/* #define BADWM_PANEL		  /* if defined, badwm draws a simple panel showing the time */
 
 #define FOLLOW_MOUSE    True      /* focus the window the mouse just entered */
 #define BSTACK          False     /* set to true for bottom stack */
@@ -53,7 +53,7 @@ static const AppRule rules[] = { \
 static const char *termcmd[] = { "urxvt",                                                                              NULL };
 static const char *menucmd[] = { "dmenu_run", "-nb", "#282828", "-nf", "#928374", "-sb", "#3c3836", "-sf", "#a89984",  NULL };
 static const char *filecmd[] = { "urxvt", "-e", "ranger",                                                              NULL };
-static const char *mtrxcmd[] = { "urxvt", "-e", "cmatrix",                                                             NULL };
+/* static const char *mtrxcmd[] = { "urxvt", "-e", "cmatrix",                                                             NULL }; cmatrix in default config?? why?? */
 static const char *htopcmd[] = { "urxvt", "-e", "htop",                                                                NULL };
 
 #define DESKTOPCHANGE(K,N) \
@@ -76,7 +76,7 @@ static Key keys[] = {
     {  MOD_K,             XK_Return,     spawn,             {.com = termcmd}},
     {  MOD_K,             XK_d,          spawn,             {.com = menucmd}},
     {  MOD_K,             XK_r,          spawn,             {.com = filecmd}},
-    {  MOD_K,             XK_m,          spawn,             {.com = mtrxcmd}},
+/*    {  MOD_K,             XK_m,          spawn,             {.com = mtrxcmd}}, */
     {  MOD_K,             XK_h,          spawn,             {.com = htopcmd}},
        DESKTOPCHANGE(     XK_F1,                            0)
        DESKTOPCHANGE(     XK_F2,                            1)
