@@ -14,5 +14,5 @@ To build and install, execute the following commands:
 $ cp config.def.h config.h
 $ nano config.h
 $ make
-$ sudo make clean install
+# make clean install
 ```
