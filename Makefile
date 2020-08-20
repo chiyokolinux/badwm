@@ -1,6 +1,6 @@
 # Makefile for badwm - see LICENSE for license and copyright information
 
-VERSION = 0.4.2
+VERSION = 0.4.6
 WMNAME  = badwm
 
 PREFIX ?= /usr
@@ -12,6 +12,7 @@ X11LIB = -L/usr/X11R6/lib -lX11
 INCS = -I. -I/usr/include ${X11INC} -lpthread
 LIBS = -L/usr/lib -lc ${X11LIB} -lpthread
 
+# removed c99 bc pthread didn't work
 # CFLAGS   = -std=c99 -pedantic -Wall -Wextra ${INCS} -DVERSION=\"${VERSION}\"
 CFLAGS	 = -pedantic -Wall -Wextra ${INCS} -DVERSION=\"${VERSION}\"
 LDFLAGS  = ${LIBS}
