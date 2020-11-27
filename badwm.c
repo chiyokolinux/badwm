@@ -402,6 +402,7 @@ void setfullscreen(Client *c, Desktop *d, Bool fullscrn) {
 void toggle_fullscreen() {
     Desktop *d = &desktops[currdeskidx];
     Client *c = d->head;
+    if (!d->head) return;
     setfullscreen(c, d, !c->isfull);
 }
 
