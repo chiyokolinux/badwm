@@ -819,17 +819,29 @@ void stack(int x, int y, int w, int h, const Desktop *d) {
     }
 }
 
+/**
+ * delete clients of invisible windows so
+ * that we do not draw void because that
+ * might cause a portal to the X11 underworld
+ * to be opened
+**/
 void unmapnotify(XEvent *e) {
     Desktop *d = NULL; Client *c = NULL;
     if (wintoclient(e->xunmap.window, &c, &d)) removeclient(c, d);
 }
 
+/**
+ * find client and desktop that w is on
+**/
 Bool wintoclient(Window w, Client **c, Desktop **d) {
     for (int i = 0; i < 4 && !*c; i++)
         for (*d = &desktops[i], *c = (*d)->head; *c && (*c)->win != w; *c = (*c)->next);
     return (*c != NULL);
 }
 
+/**
+ * checks if d has an urgent window
+**/
 Bool deskhasurgn(Desktop *d) {
     Bool urgent = False;
     for (Client *c = d->head; c; urgent |= c->isurgn, c = c->next);
