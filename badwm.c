@@ -41,6 +41,7 @@
 #define ISFFT(c)        (c->isfull)
 #define ROOTMASK        SubstructureRedirectMask|ButtonPressMask|SubstructureNotifyMask|PropertyChangeMask
 #define ITOA(n) my_itoa((char [3]) { 0 }, (n) )
+#define MASTER_PERCENT  (MASTER_SIZE + master_mod)
 
 enum { WM_PROTOCOLS, WM_DELETE_WINDOW, WM_COUNT };
 enum { NET_SUPPORTED, NET_FULLSCREEN, NET_WM_STATE, NET_ACTIVE, NET_WM_NAME, NET_COUNT };
@@ -82,6 +83,7 @@ static void move_up();
 static void next_win();
 static void prev_win();
 static void quit();
+static void resize_master(const Arg *arg);
 static void spawn(const Arg *arg);
 static void swap_master();
 static void toggle_fullscreen();
@@ -138,6 +140,7 @@ static Atom utf8_atom_type;
 static Desktop desktops[4];
 static Pixmap pm;
 static GC gc;
+static float master_mod = 0.0f;
 
 static void (*events[LASTEvent])(XEvent *e) = {
     [KeyPress]         = keypress,         [EnterNotify]    = enternotify,
@@ -508,6 +511,13 @@ Client* prevclient(Client *c, Desktop *d) {
     return p;
 }
 
+void resize_master(const Arg *arg) {
+    if (MASTER_SIZE + (master_mod + (float)arg->v) > 0.0f &&
+        MASTER_SIZE + (master_mod + (float)arg->v) < 1.0f) {
+        master_mod += (float)arg->v;
+    }
+}
+
 void spawn(const Arg *arg) {
     if (fork()) return;
     if (dis) close(ConnectionNumber(dis));
@@ -535,7 +545,7 @@ void fullscreen(int x, int y, int w, int h, const Desktop *d) {
 
 void stack(int x, int y, int w, int h, const Desktop *d) {
     Client *c = NULL, *t = NULL; Bool b = BSTACK;
-    int n = 0, p = 0, z = (b ? w:h), ma = (b ? h:w) * MASTER_SIZE + d->masz;
+    int n = 0, p = 0, z = (b ? w:h), ma = (b ? h:w) * MASTER_PERCENT + d->masz;
 
     for (t = d->head; t; t = t->next) if (!ISFFT(t)) { if (c) ++n; else c = t; }
 

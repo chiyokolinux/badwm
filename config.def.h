@@ -78,6 +78,8 @@ static Key keys[] = {
     {  MOD_K,             XK_r,          spawn,             {.com = filecmd}},
 /*    {  MOD_K,             XK_m,          spawn,             {.com = mtrxcmd}}, */
     {  MOD_K,             XK_h,          spawn,             {.com = htopcmd}},
+    {  MOD_K              XK_a           resize_master      {.v = -0.05f}},
+    {  MOD_K              XK_s           resize_master      {.v =  0.05f}},
        DESKTOPCHANGE(     XK_F1,                            0)
        DESKTOPCHANGE(     XK_F2,                            1)
        DESKTOPCHANGE(     XK_F3,                            2)
