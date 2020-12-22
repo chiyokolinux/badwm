@@ -38,20 +38,33 @@
 
 #define LENGTH(x)       (sizeof(x)/sizeof(*x))
 #define CLEANMASK(mask) (mask & ~(numlockmask | LockMask))
-#define ISFFT(c)        (c->isfull)
+#define ISFFT(c)        (c->isfull || c->isfloat || c->istrans)
 #define ROOTMASK        SubstructureRedirectMask|ButtonPressMask|SubstructureNotifyMask|PropertyChangeMask
-#define ITOA(n) my_itoa((char [3]) { 0 }, (n) )
+#define ITOA(n)         my_itoa((char [3]) { 0 }, (n) )
 #define MASTER_PERCENT  (MASTER_SIZE + master_mod)
 
 enum { WM_PROTOCOLS, WM_DELETE_WINDOW, WM_COUNT };
 enum { NET_SUPPORTED, NET_FULLSCREEN, NET_WM_STATE, NET_ACTIVE, NET_WM_NAME, NET_COUNT };
 
+/**
+ * Dynamic argument thing
+ * com - command to run [spawn()]
+ * i   - state indication
+ * v   - anything else
+**/
 typedef union {
     const char** com;
     const int i;
     const void *v;
 } Arg;
 
+/**
+ * Key (combination)
+ * mod     - modifier key mask
+ * keysym  - actual key
+ * func    - triggered function
+ * arg     - function argument
+**/
 typedef struct {
     unsigned int mod;
     KeySym keysym;
@@ -59,17 +72,39 @@ typedef struct {
     const Arg arg;
 } Key;
 
+/**
+ * rule for placing windows on desktops
+ * read: place class on #[desktop]
+**/
 typedef struct {
     const char *class;
     const int desktop;
 } AppRule;
 
+/**
+ * defines a window with its properties
+ * next    - next client on stack (NULL if last)
+ * isurgn  - set if win is urgent
+ * isfull  - set if win is fullscreen
+ * isfloat - set if win should float (e.g. tile() ignore flag)
+ * istrans - set if win received the wrong gender on creation
+ *           jk, set if win is transient
+ * win     - client window
+**/
 typedef struct Client {
     struct Client *next;
-    Bool isurgn, isfull;
+    Bool isurgn, isfull, isfloat, istrans;
     Window win;
 } Client;
 
+/**
+ * defines a desktop with its properties
+ * masz - master area size
+ * sasz - first window on stack size
+ * head - first master window
+ * prev - previously focused window
+ * curr - currently focused window
+**/
 typedef struct {
     int masz, sasz;
     Client *head, *prev, *curr;
@@ -129,19 +164,38 @@ static void grabkeys(void);
 
 #include "config.h"
 
+/**
+ * global vars
+ * running     - is the wm running and processing events?
+ * show        - are windows shown? // TODO
+ * wh, ww      - screen dimensions
+ * currdeskidx - index of the current desktop
+ * prevdeskidk - index of the previously focused desktop
+ * retval      - value to return at end
+ * dis         - X display
+ * root        - root window
+ * bar         - LEGACY bar window (will soon be deleted)
+ * wm|netatoms - wm/netatoms that are handled (ICCCM/EWMH)
+ * utf8_atom_t - type for utf8 string atoms
+ * desktops    - array of handled desktops
+ * pm, gc      - LEGACY bar stuff
+ * master_mod  - global master modifier
+**/
 static Bool running = True, show = True;
-static int wh, ww, currdeskidx, prevdeskidx, retval;
+static int wh, ww, currdeskidx, prevdeskidx, retval = 0;
 static unsigned int numlockmask, win_unfocus, win_focus, win_focus_urgn, win_unfocus_urgn, bgcol, fgcol;
 static Display *dis;
 static Window root, bar;
-static Atom wmatoms[WM_COUNT];
-static Atom netatoms[NET_COUNT];
-static Atom utf8_atom_type;
+static Atom wmatoms[WM_COUNT], netatoms[NET_COUNT], utf8_atom_type;
 static Desktop desktops[4];
 static Pixmap pm;
 static GC gc;
 static float master_mod = 0.0f;
 
+/**
+ * event handler mapping
+ * [EventName] = handler_function
+**/
 static void (*events[LASTEvent])(XEvent *e) = {
     [KeyPress]         = keypress,         [EnterNotify]    = enternotify,
     [MapRequest]       = maprequest,       [DestroyNotify]  = destroynotify,
@@ -538,6 +592,17 @@ void tile(Desktop *d) {
     }
     renderbar();
 }
+
+/**
+ * layout handlers
+ * 
+ * params:
+ * x - start x offset
+ * y - start y offset
+ * w - width
+ * h - height
+ * d - to-be-tiled desktop
+ */
 
 void fullscreen(int x, int y, int w, int h, const Desktop *d) {
     for (Client *c = d->head; c; c = c->next) if (!ISFFT(c)) XMoveResizeWindow(dis, c->win, x, y, w, h);
