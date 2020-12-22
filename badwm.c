@@ -43,6 +43,7 @@
 #define ITOA(n) my_itoa((char [3]) { 0 }, (n) )
 
 enum { WM_PROTOCOLS, WM_DELETE_WINDOW, WM_COUNT };
+enum { NET_SUPPORTED, NET_FULLSCREEN, NET_WM_STATE, NET_ACTIVE, NET_WM_NAME, NET_COUNT };
 
 typedef union {
     const char** com;
@@ -132,6 +133,8 @@ static unsigned int numlockmask, win_unfocus, win_focus, win_focus_urgn, win_unf
 static Display *dis;
 static Window root, bar;
 static Atom wmatoms[WM_COUNT];
+static Atom netatoms[NET_COUNT];
+static Atom utf8_atom_type;
 static Desktop desktops[4];
 static Pixmap pm;
 static GC gc;
@@ -431,8 +434,20 @@ void initwm(void) {
             numlockmask = (1 << k);
     XFreeModifiermap(modmap);
 
-    wmatoms[WM_PROTOCOLS]     = XInternAtom(dis, "WM_PROTOCOLS",     False);
-    wmatoms[WM_DELETE_WINDOW] = XInternAtom(dis, "WM_DELETE_WINDOW", False);
+    wmatoms[WM_PROTOCOLS]      = XInternAtom(dis, "WM_PROTOCOLS",     False);
+    wmatoms[WM_DELETE_WINDOW]  = XInternAtom(dis, "WM_DELETE_WINDOW", False);
+    netatoms[NET_SUPPORTED]    = XInternAtom(dis, "_NET_SUPPORTED",   False);
+    netatoms[NET_WM_STATE]     = XInternAtom(dis, "_NET_WM_STATE",    False);
+    netatoms[NET_WM_NAME]      = XInternAtom(dis, "_NET_WM_NAME",     False);
+    netatoms[NET_ACTIVE]       = XInternAtom(dis, "_NET_ACTIVE_WINDOW",       False);
+    netatoms[NET_FULLSCREEN]   = XInternAtom(dis, "_NET_WM_STATE_FULLSCREEN", False);
+
+    utf8_atom_type    = XInternAtom(dis, "UTF8_STRING", False);
+
+    /* set _NET_WM_NAME (for pfetch, neofetch, ufetch, etc...) */
+    XChangeProperty(dis, root, netatoms[NET_WM_NAME], utf8_atom_type, 8, PropModeReplace, "badwm", 6);
+    /* tell the X Server that we support all the netatoms we have in netatoms[] */
+    XChangeProperty(dis, root, netatoms[NET_SUPPORTED], XA_ATOM, 32, PropModeReplace, (unsigned char *)netatoms, NET_COUNT);
 
     XSetErrorHandler(xerrorstart);
     XSelectInput(dis, root, ROOTMASK);
