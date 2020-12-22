@@ -554,6 +554,10 @@ void prev_win(void) {
     renderbar();
 }
 
+/**
+ * set urgent hint of window
+ * if urgent, set isurgn and recolor border
+**/
 void propertynotify(XEvent *e) {
     Desktop *d = NULL; Client *c = NULL;
     if (e->xproperty.atom != XA_WM_HINTS || !wintoclient(e->xproperty.window, &c, &d)) return;
@@ -568,11 +572,18 @@ void propertynotify(XEvent *e) {
     renderbar();
 }
 
+/**
+ * quit badwm
+**/
 void quit() {
     retval = 0;
     running = False;
 }
 
+/**
+ * remove a client from a desktop,
+ * then retile n stuff
+**/
 void removeclient(Client *c, Desktop *d) {
     Client **p = NULL;
     for (p = &d->head; *p && (*p != c); p = &(*p)->next);
@@ -584,6 +595,9 @@ void removeclient(Client *c, Desktop *d) {
     renderbar();
 }
 
+/**
+ * set fullscreen state of a client
+**/
 void setfullscreen(Client *c, Desktop *d, Bool fullscrn) {
     c->isfull = fullscrn;
     if (fullscrn) XMoveResizeWindow(dis, c->win, 0, 0, ww, wh + PANEL_HEIGHT);
@@ -592,6 +606,9 @@ void setfullscreen(Client *c, Desktop *d, Bool fullscrn) {
     renderbar();
 }
 
+/**
+ * toggle fullscreen state of a client
+**/
 void toggle_fullscreen() {
     Desktop *d = &desktops[currdeskidx];
     Client *c = d->head;
@@ -599,6 +616,10 @@ void toggle_fullscreen() {
     setfullscreen(c, d, !c->isfull);
 }
 
+/**
+ * init the window manager,
+ * set & get init values, ...
+**/
 void initwm(void) {
     sigchld(0);
 
@@ -661,6 +682,9 @@ void initwm(void) {
     pm = XCreatePixmap(dis, bar, ww, PANEL_HEIGHT, DefaultDepth(dis,screen));
 }
 
+/**
+ * process events
+**/
 void runwm(void) {
     XEvent ev;
 #ifdef BADWM_PANEL
@@ -673,6 +697,9 @@ void runwm(void) {
 #endif
 }
 
+/**
+ * swap current client with master
+**/
 void swap_master(void) {
     Desktop *d = &desktops[currdeskidx];
     if (!d->curr || !d->head->next) return;
@@ -681,23 +708,35 @@ void swap_master(void) {
     focus(d->head, d);
 }
 
+/**
+ * convert hex color to X11 color
+**/
 unsigned long getcolor(const char* color, const int screen) {
     XColor c; Colormap map = DefaultColormap(dis, screen);
     if (!XAllocNamedColor(dis, map, color, &c, &c)) err(EXIT_FAILURE, "cannot allocate color");
     return c.pixel;
 }
 
+/**
+ * SIGCHLD handler
+**/
 void sigchld(__attribute__((unused)) int sig) {
     if (signal(SIGCHLD, sigchld) != SIG_ERR) while(0 < waitpid(-1, NULL, WNOHANG));
     else err(EXIT_FAILURE, "cannot install SIGCHLD handler");
 }
 
+/**
+ * gets prev of c on d
+**/
 Client* prevclient(Client *c, Desktop *d) {
     Client *p = NULL;
     if (c && d->head && d->head->next) for (p = d->head; p->next && p->next != c; p = p->next);
     return p;
 }
 
+/**
+ * change global master area
+**/
 void resize_master(const Arg *arg) {
     if (MASTER_SIZE + (master_mod + (float)arg->v) > 0.0f &&
         MASTER_SIZE + (master_mod + (float)arg->v) < 1.0f) {
@@ -705,6 +744,9 @@ void resize_master(const Arg *arg) {
     }
 }
 
+/**
+ * run arg->com detached
+**/
 void spawn(const Arg *arg) {
     if (fork()) return;
     if (dis) close(ConnectionNumber(dis));
@@ -714,6 +756,9 @@ void spawn(const Arg *arg) {
     renderbar();
 }
 
+/**
+ * call appropriate tiling function
+**/
 void tile(Desktop *d) {
     if (!d->head) return;
     if (d->head->next && !d->head->isfull) {
@@ -737,10 +782,16 @@ void tile(Desktop *d) {
  * d - to-be-tiled desktop
  */
 
+/**
+ * fullscreen tiling handler
+**/
 void fullscreen(int x, int y, int w, int h, const Desktop *d) {
     for (Client *c = d->head; c; c = c->next) if (!ISFFT(c)) XMoveResizeWindow(dis, c->win, x, y, w, h);
 }
 
+/**
+ * stack tiling handler
+**/
 void stack(int x, int y, int w, int h, const Desktop *d) {
     Client *c = NULL, *t = NULL; Bool b = BSTACK;
     int n = 0, p = 0, z = (b ? w:h), ma = (b ? h:w) * MASTER_PERCENT + d->masz;
@@ -785,6 +836,9 @@ Bool deskhasurgn(Desktop *d) {
     return urgent;
 }
 
+/**
+ * LEGACY: load bar font
+**/
 void loadfont() {
     XFontStruct *font = XLoadQueryFont (dis, PANELFONT);
     if (!font) {
@@ -794,11 +848,17 @@ void loadfont() {
     XSetFont(dis, gc, font->fid);
 }
 
+/**
+ * int to char*
+**/
 char *my_itoa(char *dest, int i) {
     sprintf(dest, "%d", i);
     return dest;
 }
 
+/**
+ * LEGACY: bar thread run function
+**/
 void *runbar(void *arg) {
     pthread_detach(pthread_self());
     loadfont();
@@ -809,6 +869,9 @@ void *runbar(void *arg) {
     return 0;
 }
 
+/**
+ * LEGACY: inits bar thread & spawns
+**/
 void initbar() {
     pthread_t thread_id;
     if (pthread_create(&thread_id, NULL, runbar, NULL) != 0) {
@@ -817,6 +880,9 @@ void initbar() {
     }
 }
 
+/**
+ * LEGACY: renders bar
+**/
 void renderbar() {
     XSetForeground(dis, gc, bgcol);
     XFillRectangle(dis, pm, gc, 0, 0, ww, PANEL_HEIGHT);
@@ -853,6 +919,9 @@ void renderbar() {
 #endif
 }
 
+/**
+ * X error handler
+**/
 int xerror(__attribute__((unused)) Display *dis, XErrorEvent *ee) {
     if ((ee->error_code == BadAccess   && (ee->request_code == X_GrabKey
                                        ||  ee->request_code == X_GrabButton))
@@ -865,6 +934,9 @@ int xerror(__attribute__((unused)) Display *dis, XErrorEvent *ee) {
     err(EXIT_FAILURE, "XError: Request: %d Code: %d", ee->request_code, ee->error_code);
 }
 
+/**
+ * we can't start if there's already someone managing the windows
+**/
 int xerrorstart(__attribute__((unused)) Display *dis, __attribute__((unused)) XErrorEvent *ee) {
     errx(EXIT_FAILURE, "CRITICAL: Another window manager is already running!");
 }
