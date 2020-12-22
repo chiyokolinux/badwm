@@ -203,6 +203,10 @@ static void (*events[LASTEvent])(XEvent *e) = {
     [ConfigureRequest] = configurerequest, [FocusIn]        = focusin,
 };
 
+/**
+ * create Client for w and
+ * add as master of d
+**/
 Client* addwindow(Window w, Desktop *d) {
     Client *c = NULL, *t = prevclient(d->head, d);
     if (!(c = (Client *)calloc(1, sizeof(Client)))) err(EXIT_FAILURE, "cannot allocate client");
@@ -214,6 +218,11 @@ Client* addwindow(Window w, Desktop *d) {
     return c;
 }
 
+/**
+ * change desktop to index arg->i
+ * 
+ * first maps then unmaps to patch flickers
+**/
 void change_desktop(const Arg *arg) {
     if (arg->i == currdeskidx || arg->i < 0 || arg->i >= 4) return;
     Desktop *d = &desktops[(prevdeskidx = currdeskidx)], *n = &desktops[(currdeskidx = arg->i)];
@@ -227,6 +236,9 @@ void change_desktop(const Arg *arg) {
     renderbar();
 }
 
+/**
+ * cleans up everyhting
+**/
 void cleanup(void) {
     Window root_return, parent_return, *children;
     unsigned int nchildren;
@@ -241,6 +253,10 @@ void cleanup(void) {
     XSync(dis, False);
 }
 
+/**
+ * move current client to desktop #[arg->i]
+ * push to stack (e.g. last client)
+**/
 void client_to_desktop(const Arg *arg) {
     if (arg->i == currdeskidx || arg->i < 0 || arg->i >= 4 || !desktops[currdeskidx].curr) return;
     Desktop *d = &desktops[currdeskidx], *n = &desktops[arg->i];
@@ -259,15 +275,30 @@ void client_to_desktop(const Arg *arg) {
     renderbar();
 }
 
+/**
+ * handles configure request
+ * 
+ * some windows set some preferred x, y, w, h, border width, ...
+ * stuff, this function reads them and sets them for the window.
+ * this is because some applications crash if they don't get what
+ * they asked for, so we pretend to respect their wishes and
+ * set their preferred stuff only to BETRAY THEM DIRECTLY AFTER
+ * AND FORCE OUR TILING IDEALS ONTO THEIR GEOMETRY MUHAHAHAAA
+**/
 void configurerequest(XEvent *e) {
     XConfigureRequestEvent *ev = &e->xconfigurerequest;
-    XWindowChanges wc = { ev->x, ev->y,  ev->width, ev->height, ev->border_width, ev->above, ev->detail };
+    XWindowChanges wc = { ev->x, ev->y, ev->width, ev->height, ev->border_width, ev->above, ev->detail };
     if (XConfigureWindow(dis, ev->window, ev->value_mask, &wc)) XSync(dis, False);
     Desktop *d = NULL; Client *c = NULL;
     if (wintoclient(ev->window, &c, &d)) tile(d);
     renderbar();
 }
 
+/**
+ * send WM_DELETE_WINDOW message to w
+ * this should close the client
+ * (e.g. [x] btn on regular wm)
+**/
 void deletewindow(Window w) {
     XEvent ev = { .type = ClientMessage };
     ev.xclient.window = w;
@@ -279,12 +310,20 @@ void deletewindow(Window w) {
     renderbar();
 }
 
+/**
+ * executed whenever a window is destroyed (closed/...)
+ * it removes the client
+**/
 void destroynotify(XEvent *e) {
     Desktop *d = NULL; Client *c = NULL;
     if (wintoclient(e->xdestroywindow.window, &c, &d)) removeclient(c, d);
     renderbar();
 }
 
+/**
+ * when the mouse pointer enters a Client's region,
+ * focus that client
+**/
 void enternotify(XEvent *e) {
     Desktop *d = NULL; Client *c = NULL, *p = NULL;
 
@@ -298,13 +337,44 @@ void enternotify(XEvent *e) {
     renderbar();
 }
 
+/**
+ * sets curr and prev for d, restacks clients,
+ * manages borders and then focuses curr
+**/
 void focus(Client *c, Desktop *d) {
+    /**
+     * if there is no client on d or c is NULL,
+     * set curr and prev to NULL and return
+     * if c was previously focused and curr was destroyed,
+     * meaning focus(prev) was called, then set curr to c
+     * and prev to prevclient(curr, d)
+     * otherwise, prev_win() was called, then set
+     * prev to curr and curr to c
+    **/
     if (!d->head || !c) {
         d->curr = d->prev = NULL;
         return;
-    } else if (d->prev == c && d->curr != c->next) { d->prev = prevclient((d->curr = c), d);
-    } else if (d->curr != c) { d->prev = d->curr; d->curr = c; }
+    } else if (d->prev == c && d->curr != c->next) {
+        d->curr = c;
+        d->prev = prevclient(d->curr, d);
+    } else if (d->curr != c) {
+        d->prev = d->curr;
+        d->curr = c;
+    }
 
+    /**
+     * restack clients
+     *
+     * order is as follows:
+     *  - current when floating or transient
+     *  - floating || transient windows
+     *  - current when tiled
+     *  - current when fullscreen
+     *  - fullscreen windows
+     *  - tiled windows
+     *
+     * num of n:all fl:fullscreen ft:floating/transient windows
+    **/
     int n = 0, fl = 0, ft = 0;
     for (c = d->head; c; c = c->next, ++n) if (ISFFT(c)) { fl++; if (!c->isfull) ft++; }
     Window w[n];
@@ -322,11 +392,19 @@ void focus(Client *c, Desktop *d) {
     renderbar();
 }
 
+/**
+ * some windows steal focus, this
+ * function sets the focus back to the
+ * window focused by the user/wm
+**/
 void focusin(XEvent *e) {
     Desktop *d = &desktops[currdeskidx];
     if (d->curr && d->curr->win != e->xfocus.window) focus(d->curr, d);
 }
 
+/**
+ * register KeyEvent and listen for it
+**/
 void grabkeys(void) {
     KeyCode code;
     XUngrabKey(dis, AnyKey, AnyModifier, root);
@@ -337,6 +415,10 @@ void grabkeys(void) {
             XGrabKey(dis, code, keys[k].mod|modifiers[m++], root, True, GrabModeAsync, GrabModeAsync);
 }
 
+/**
+ * call handler for KeyEvents registered
+ * by grabkeys(void)
+**/
 void keypress(XEvent *e) {
     KeySym keysym = XkbKeycodeToKeysym(dis, e->xkey.keycode, 0, 0);
     for (unsigned int i = 0; i < LENGTH(keys); i++)
@@ -344,6 +426,11 @@ void keypress(XEvent *e) {
             if (keys[i].func) keys[i].func(&keys[i].arg);
 }
 
+/**
+ * close a win using WM_DELETE_WINDOW request
+ * if this is not supported, just kill the
+ * client and go on with life
+**/
 void close_win(void) {
     Desktop *d = &desktops[currdeskidx];
     if (!d->curr) return;
@@ -357,6 +444,15 @@ void close_win(void) {
     renderbar();
 }
 
+/**
+ * called when a window is like "hey user look at me you fuckhead!"
+ * if the window is already shown that's up to the user
+ * if override_redirect is set we don't care about what the window wants
+ * 
+ * move the window to the desktop where is should be (AppRuleExists ? AppRuleDeskIdx : currdeskidx)
+ * TODO: set is{float,trans,full}
+ * focus the desktop where the window went
+**/
 void maprequest(XEvent *e) {
     Desktop *d = NULL; Client *c = NULL;
     Window w = e->xmaprequest.window;
@@ -386,38 +482,75 @@ void maprequest(XEvent *e) {
     focus(c, d);
 }
 
+/**
+ * swap curr and prev of curr
+**/
 void move_up(void) {
     Desktop *d = &desktops[currdeskidx];
-    if (!d->curr || !d->head->next) return;
+    if (!d->curr || !d->head->next)
+        return;
+
+    /* p is prev from curr, pp is prev from p */
     Client *pp = NULL, *p = prevclient(d->curr, d);
-    if (p->next) for (pp = d->head; pp && pp->next != p; pp = pp->next);
-    if (pp) pp->next = d->curr; else d->head = (d->curr == d->head) ? d->curr->next:d->curr;
+    if (p->next)
+        for (pp = d->head; pp && pp->next != p; pp = pp->next);
+
+    if (pp)
+        pp->next = d->curr;
+    else
+        d->head = (d->curr == d->head) ? d->curr->next:d->curr;
+
     p->next = (d->curr->next == d->head) ? d->curr:d->curr->next;
     d->curr->next = (d->curr->next == d->head) ? NULL:p;
     tile(d);
+
     renderbar();
 }
 
+/**
+ * swap curr and next
+**/
 void move_down(void) {
     Desktop *d = &desktops[currdeskidx];
-    if (!d->curr || !d->head->next) return;
+    if (!d->curr || !d->head->next)
+        return;
+
     Client *p = prevclient(d->curr, d), *n = (d->curr->next) ? d->curr->next:d->head;
-    if (d->curr == d->head) d->head = n; else p->next = d->curr->next;
+
+    if (d->curr == d->head)
+        d->head = n;
+    else
+        p->next = d->curr->next;
     d->curr->next = (d->curr->next) ? n->next:n;
-    if (d->curr->next == n->next) n->next = d->curr; else d->head = d->curr;
+
+    if (d->curr->next == n->next)
+        n->next = d->curr;
+    else
+        d->head = d->curr;
     tile(d);
+
     renderbar();
 }
 
+/**
+ * focus next window
+ * if there is no next, focus head
+**/
 void next_win(void) {
     Desktop *d = &desktops[currdeskidx];
-    if (d->curr && d->head->next) focus(d->curr->next ? d->curr->next:d->head, d);
+    if (d->curr && d->head->next)
+        focus(d->curr->next ? d->curr->next:d->head, d);
     renderbar();
 }
 
+/**
+ * focus previous window
+ * if there is no prev, focus stack tail
+**/
 void prev_win(void) {
     Desktop *d = &desktops[currdeskidx];
-    if (d->curr && d->head->next) focus(prevclient(d->curr, d), d);
+    if (d->curr && d->head->next)
+        focus(prevclient(d->curr, d), d);
     renderbar();
 }
 
