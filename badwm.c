@@ -1,7 +1,7 @@
 /*******************************************************************************
  *                                                                             *
  * badwm - A simple, non-bloated, tiling window manager, based on tinywm       *
- * Copyright (C) 2019-2020 Jonas Jaguar <jonasjaguar@jagudev.net>              *
+ * Copyright (C) 2019-2021 Jonas Jaguar <jonasjaguar@jagudev.net>              *
  *                                                                             *
  * This program is free software: you can redistribute it and/or modify it     *
  * under the terms of the GNU General Public License as published by the Free  *
@@ -50,12 +50,14 @@ enum { NET_SUPPORTED, NET_FULLSCREEN, NET_WM_STATE, NET_ACTIVE, NET_WM_NAME, NET
  * Dynamic argument thing
  * com - command to run [spawn()]
  * i   - state indication
+ * f   - some float [resize_master()]
  * v   - anything else
 **/
 typedef union {
     const char** com;
     const int i;
     const void *v;
+    const float f;
 } Arg;
 
 /**
@@ -101,12 +103,13 @@ typedef struct Client {
  * defines a desktop with its properties
  * masz - master area size
  * sasz - first window on stack size
+ * sbar - whether to show the bar
  * head - first master window
  * prev - previously focused window
  * curr - currently focused window
 **/
 typedef struct {
-    int masz, sasz;
+    int masz, sasz, sbar;
     Client *head, *prev, *curr;
 } Desktop;
 
@@ -122,6 +125,7 @@ static void resize_master(const Arg *arg);
 static void spawn(const Arg *arg);
 static void swap_master();
 static void toggle_fullscreen();
+static void toggle_bar();
 
 static Client* addwindow(Window w, Desktop *d);
 static void cleanup(void);
@@ -144,12 +148,8 @@ static void tile(Desktop *d);
 static void stack(int x, int y, int w, int h, const Desktop *d);
 static void fullscreen(int x, int y, int w, int h, const Desktop *d);
 
-static char* my_itoa(char *dest, int i);
 static Bool deskhasurgn(Desktop *d);
-static void loadfont();
-static void initbar();
-static void *runbar(void *arg);
-static void renderbar();
+static void printbar();
 
 static void propertynotify(XEvent *e);
 static void unmapnotify(XEvent *e);
@@ -167,29 +167,24 @@ static void grabkeys(void);
 /**
  * global vars
  * running     - is the wm running and processing events?
- * show        - are windows shown? // TODO
  * wh, ww      - screen dimensions
  * currdeskidx - index of the current desktop
  * prevdeskidk - index of the previously focused desktop
  * retval      - value to return at end
  * dis         - X display
  * root        - root window
- * bar         - LEGACY bar window (will soon be deleted)
  * wm|netatoms - wm/netatoms that are handled (ICCCM/EWMH)
  * utf8_atom_t - type for utf8 string atoms
  * desktops    - array of handled desktops
- * pm, gc      - LEGACY bar stuff
  * master_mod  - global master modifier
 **/
-static Bool running = True, show = True;
+static Bool running = True;
 static int wh, ww, currdeskidx, prevdeskidx, retval = 0;
 static unsigned int numlockmask, win_unfocus, win_focus, win_focus_urgn, win_unfocus_urgn, bgcol, fgcol;
 static Display *dis;
-static Window root, bar;
+static Window root;
 static Atom wmatoms[WM_COUNT], netatoms[NET_COUNT], utf8_atom_type;
-static Desktop desktops[4];
-static Pixmap pm;
-static GC gc;
+static Desktop desktops[DESKNUM];
 static float master_mod = 0.0f;
 
 /**
@@ -208,13 +203,13 @@ static void (*events[LASTEvent])(XEvent *e) = {
  * add as master of d
 **/
 Client* addwindow(Window w, Desktop *d) {
-    Client *c = NULL, *t = prevclient(d->head, d);
+    Client *c = NULL;
     if (!(c = (Client *)calloc(1, sizeof(Client)))) err(EXIT_FAILURE, "cannot allocate client");
     if (!d->head) d->head = c;
     else { c->next = d->head; d->head = c; }
 
     XSelectInput(dis, (c->win = w), PropertyChangeMask|FocusChangeMask|(FOLLOW_MOUSE?EnterWindowMask:0));
-    renderbar();
+    printbar();
     return c;
 }
 
@@ -224,7 +219,7 @@ Client* addwindow(Window w, Desktop *d) {
  * first maps then unmaps to patch flickers
 **/
 void change_desktop(const Arg *arg) {
-    if (arg->i == currdeskidx || arg->i < 0 || arg->i >= 4) return;
+    if (arg->i == currdeskidx || arg->i < 0 || arg->i >= DESKNUM) return;
     Desktop *d = &desktops[(prevdeskidx = currdeskidx)], *n = &desktops[(currdeskidx = arg->i)];
     if (n->curr) XMapWindow(dis, n->curr->win);
     for (Client *c = n->head; c; c = c->next) XMapWindow(dis, c->win);
@@ -233,7 +228,7 @@ void change_desktop(const Arg *arg) {
     if (d->curr) XUnmapWindow(dis, d->curr->win);
     XChangeWindowAttributes(dis, root, CWEventMask, &(XSetWindowAttributes){.event_mask = ROOTMASK});
     if (n->head) { tile(n); focus(n->curr, n); }
-    renderbar();
+    printbar();
 }
 
 /**
@@ -242,9 +237,6 @@ void change_desktop(const Arg *arg) {
 void cleanup(void) {
     Window root_return, parent_return, *children;
     unsigned int nchildren;
-    XFreeGC(dis, gc);
-    XFreePixmap(dis, pm);
-    XDestroyWindow(dis, bar);
 
     XUngrabKey(dis, AnyKey, AnyModifier, root);
     XQueryTree(dis, root, &root_return, &parent_return, &children, &nchildren);
@@ -258,7 +250,7 @@ void cleanup(void) {
  * push to stack (e.g. last client)
 **/
 void client_to_desktop(const Arg *arg) {
-    if (arg->i == currdeskidx || arg->i < 0 || arg->i >= 4 || !desktops[currdeskidx].curr) return;
+    if (arg->i == currdeskidx || arg->i < 0 || arg->i >= DESKNUM || !desktops[currdeskidx].curr) return;
     Desktop *d = &desktops[currdeskidx], *n = &desktops[arg->i];
     Client *c = d->curr, *p = prevclient(d->curr, d), *l = prevclient(n->head, n);
 
@@ -272,7 +264,7 @@ void client_to_desktop(const Arg *arg) {
     focus(l ? (l->next = c):n->head ? (n->head->next = c):(n->head = c), n);
 
     change_desktop(arg);
-    renderbar();
+    printbar();
 }
 
 /**
@@ -291,7 +283,7 @@ void configurerequest(XEvent *e) {
     if (XConfigureWindow(dis, ev->window, ev->value_mask, &wc)) XSync(dis, False);
     Desktop *d = NULL; Client *c = NULL;
     if (wintoclient(ev->window, &c, &d)) tile(d);
-    renderbar();
+    printbar();
 }
 
 /**
@@ -307,7 +299,7 @@ void deletewindow(Window w) {
     ev.xclient.data.l[0]    = wmatoms[WM_DELETE_WINDOW];
     ev.xclient.data.l[1]    = CurrentTime;
     XSendEvent(dis, w, False, NoEventMask, &ev);
-    renderbar();
+    printbar();
 }
 
 /**
@@ -317,7 +309,7 @@ void deletewindow(Window w) {
 void destroynotify(XEvent *e) {
     Desktop *d = NULL; Client *c = NULL;
     if (wintoclient(e->xdestroywindow.window, &c, &d)) removeclient(c, d);
-    renderbar();
+    printbar();
 }
 
 /**
@@ -334,7 +326,7 @@ void enternotify(XEvent *e) {
         XChangeWindowAttributes(dis, p->win, CWEventMask, &(XSetWindowAttributes){.do_not_propagate_mask = EnterWindowMask});
     focus(c, d);
     if (p) XChangeWindowAttributes(dis, p->win, CWEventMask, &(XSetWindowAttributes){.event_mask = EnterWindowMask});
-    renderbar();
+    printbar();
 }
 
 /**
@@ -389,7 +381,7 @@ void focus(Client *c, Desktop *d) {
 
     XSetInputFocus(dis, d->curr->win, RevertToPointerRoot, CurrentTime);
     XSync(dis, False);
-    renderbar();
+    printbar();
 }
 
 /**
@@ -441,7 +433,7 @@ void close_win(void) {
     if (n < 0) { XKillClient(dis, d->curr->win); removeclient(d->curr, d); }
     else deletewindow(d->curr->win);
     if (prot) XFree(prot);
-    renderbar();
+    printbar();
 }
 
 /**
@@ -465,7 +457,7 @@ void maprequest(XEvent *e) {
 
     if (XGetClassHint(dis, w, &ch)) for (unsigned int i = 0; i < LENGTH(rules); i++)
         if (strstr(ch.res_class, rules[i].class) || strstr(ch.res_name, rules[i].class)) {
-            if (rules[i].desktop >= 0 && rules[i].desktop < 4) newdsk = rules[i].desktop;
+            if (rules[i].desktop >= 0 && rules[i].desktop < DESKNUM) newdsk = rules[i].desktop;
             follow = True;
             break;
         }
@@ -474,8 +466,11 @@ void maprequest(XEvent *e) {
 
     c = addwindow(w, (d = &desktops[newdsk]));
 
-    int i; unsigned long l; unsigned char *state = NULL; Atom a;
-    if (state) XFree(state);
+    /*int i;
+    unsigned long l;
+    unsigned char *state = NULL;
+    Atom a;
+    if (state) XFree(state);*/
 
     if (currdeskidx == newdsk) { if (!ISFFT(c)) tile(d); XMapWindow(dis, c->win); }
     else if (follow) change_desktop(&(Arg){.i = newdsk});
@@ -504,7 +499,7 @@ void move_up(void) {
     d->curr->next = (d->curr->next == d->head) ? NULL:p;
     tile(d);
 
-    renderbar();
+    printbar();
 }
 
 /**
@@ -529,7 +524,7 @@ void move_down(void) {
         d->head = d->curr;
     tile(d);
 
-    renderbar();
+    printbar();
 }
 
 /**
@@ -540,7 +535,7 @@ void next_win(void) {
     Desktop *d = &desktops[currdeskidx];
     if (d->curr && d->head->next)
         focus(d->curr->next ? d->curr->next:d->head, d);
-    renderbar();
+    printbar();
 }
 
 /**
@@ -551,7 +546,7 @@ void prev_win(void) {
     Desktop *d = &desktops[currdeskidx];
     if (d->curr && d->head->next)
         focus(prevclient(d->curr, d), d);
-    renderbar();
+    printbar();
 }
 
 /**
@@ -569,7 +564,7 @@ void propertynotify(XEvent *e) {
     }
 
     if (wmh) XFree(wmh);
-    renderbar();
+    printbar();
 }
 
 /**
@@ -592,7 +587,7 @@ void removeclient(Client *c, Desktop *d) {
     if (c == d->curr || (d->head && !d->head->next)) focus(d->prev, d);
     tile(d);
     free(c);
-    renderbar();
+    printbar();
 }
 
 /**
@@ -603,7 +598,7 @@ void setfullscreen(Client *c, Desktop *d, Bool fullscrn) {
     if (fullscrn) XMoveResizeWindow(dis, c->win, 0, 0, ww, wh + PANEL_HEIGHT);
     else tile(d);
     XSetWindowBorderWidth(dis, c->win, (c->isfull || !d->head->next ? 0:BORDER_SIZE));
-    renderbar();
+    printbar();
 }
 
 /**
@@ -614,6 +609,15 @@ void toggle_fullscreen() {
     Client *c = d->head;
     if (!d->head) return;
     setfullscreen(c, d, !c->isfull);
+}
+
+/**
+ * toggle visibility of the bar
+ */
+void toggle_bar() {
+    desktops[currdeskidx].sbar = !desktops[currdeskidx].sbar;
+    printbar();
+    tile(&desktops[currdeskidx]);
 }
 
 /**
@@ -629,8 +633,8 @@ void initwm(void) {
     ww = XDisplayWidth(dis, screen);
     wh = XDisplayHeight(dis, screen) - PANEL_HEIGHT;
 
-    for (unsigned int d = 0; d < 4; d++)
-        desktops[d] = (Desktop){ };
+    for (unsigned int d = 0; d < DESKNUM; d++)
+        desktops[d] = (Desktop){ .sbar = 1 };
 
     win_focus = getcolor(FOCUS, screen);
     win_unfocus = getcolor(UNFOCUS, screen);
@@ -656,7 +660,7 @@ void initwm(void) {
     utf8_atom_type    = XInternAtom(dis, "UTF8_STRING", False);
 
     /* set _NET_WM_NAME (for pfetch, neofetch, ufetch, etc...) */
-    XChangeProperty(dis, root, netatoms[NET_WM_NAME], utf8_atom_type, 8, PropModeReplace, "badwm", 6);
+    XChangeProperty(dis, root, netatoms[NET_WM_NAME], utf8_atom_type, 8, PropModeReplace, (unsigned char *)"badwm", 6);
     /* tell the X Server that we support all the netatoms we have in netatoms[] */
     XChangeProperty(dis, root, netatoms[NET_SUPPORTED], XA_ATOM, 32, PropModeReplace, (unsigned char *)netatoms, NET_COUNT);
 
@@ -668,18 +672,6 @@ void initwm(void) {
 
     grabkeys();
     change_desktop(&(Arg){.i = 0});
-
-    XSetWindowAttributes wa = { .background_pixel = bgcol, .override_redirect = 1, .event_mask = ExposureMask, };
-    bar = XCreateWindow(dis, root, 0,
-            (TOP_PANEL) ? 0 : wh, ww, PANEL_HEIGHT, 1,
-            CopyFromParent, InputOutput, CopyFromParent,
-            CWBackPixel | CWOverrideRedirect | CWEventMask, &wa);
-    XMapWindow(dis, bar);
-    XSetWindowBorderWidth(dis, bar, 0);
-
-    XGCValues gcv = { .graphics_exposures = 0, };
-    gc = XCreateGC(dis, root, GCGraphicsExposures, &gcv);
-    pm = XCreatePixmap(dis, bar, ww, PANEL_HEIGHT, DefaultDepth(dis,screen));
 }
 
 /**
@@ -738,9 +730,9 @@ Client* prevclient(Client *c, Desktop *d) {
  * change global master area
 **/
 void resize_master(const Arg *arg) {
-    if (MASTER_SIZE + (master_mod + (float)arg->v) > 0.0f &&
-        MASTER_SIZE + (master_mod + (float)arg->v) < 1.0f) {
-        master_mod += (float)arg->v;
+    if (MASTER_SIZE + (master_mod + arg->f) > 0.0f &&
+        MASTER_SIZE + (master_mod + arg->f) < 1.0f) {
+        master_mod += arg->f;
     }
 }
 
@@ -753,7 +745,7 @@ void spawn(const Arg *arg) {
     setsid();
     execvp((char*)arg->com[0], (char**)arg->com);
     err(EXIT_SUCCESS, "execvp %s", (char *)arg->com[0]);
-    renderbar();
+    printbar();
 }
 
 /**
@@ -762,13 +754,13 @@ void spawn(const Arg *arg) {
 void tile(Desktop *d) {
     if (!d->head) return;
     if (d->head->next && !d->head->isfull) {
-        stack(0, TOP_PANEL ? PANEL_HEIGHT:0,
-              ww, wh + 0, d);
+        stack(0, TOP_PANEL && d->sbar ? PANEL_HEIGHT:0,
+              ww, wh + (d->sbar ? 0:PANEL_HEIGHT), d);
     } else {
-        fullscreen(0, TOP_PANEL ? PANEL_HEIGHT:0,
-                   ww, wh + 0, d);
+        fullscreen(0, TOP_PANEL && d->sbar ? PANEL_HEIGHT:0,
+                   ww, wh + (d->sbar ? 0:PANEL_HEIGHT), d);
     }
-    renderbar();
+    printbar();
 }
 
 /**
@@ -834,7 +826,7 @@ void unmapnotify(XEvent *e) {
  * find client and desktop that w is on
 **/
 Bool wintoclient(Window w, Client **c, Desktop **d) {
-    for (int i = 0; i < 4 && !*c; i++)
+    for (int i = 0; i < DESKNUM && !*c; i++)
         for (*d = &desktops[i], *c = (*d)->head; *c && (*c)->win != w; *c = (*c)->next);
     return (*c != NULL);
 }
@@ -849,86 +841,21 @@ Bool deskhasurgn(Desktop *d) {
 }
 
 /**
- * LEGACY: load bar font
+ * print bar info
 **/
-void loadfont() {
-    XFontStruct *font = XLoadQueryFont (dis, PANELFONT);
-    if (!font) {
-        fprintf(stderr, "ERROR: Unable to load font %s: using fixed\n", PANELFONT);
-        font = XLoadQueryFont(dis, "fixed");
-    }
-    XSetFont(dis, gc, font->fid);
-}
+void printbar() {
+    /**
+     * $DESKNUM_TOTAL:$DESKFOCUS $($HASWIN:$HASURGN:$SHOWBAR)[for desk in desktops]
+    **/
 
-/**
- * int to char*
-**/
-char *my_itoa(char *dest, int i) {
-    sprintf(dest, "%d", i);
-    return dest;
-}
+    printf("%d:%d", DESKNUM, currdeskidx);
 
-/**
- * LEGACY: bar thread run function
-**/
-void *runbar(void *arg) {
-    pthread_detach(pthread_self());
-    loadfont();
-    while (running) {
-        renderbar();
-        usleep(PANEL_INTERVAL * 1000l);
-    }
-    return 0;
-}
-
-/**
- * LEGACY: inits bar thread & spawns
-**/
-void initbar() {
-    pthread_t thread_id;
-    if (pthread_create(&thread_id, NULL, runbar, NULL) != 0) {
-        fprintf(stderr, "ERROR: Unable to spawn bar thread!\n");
-        exit(EXIT_FAILURE);
-    }
-}
-
-/**
- * LEGACY: renders bar
-**/
-void renderbar() {
-    XSetForeground(dis, gc, bgcol);
-    XFillRectangle(dis, pm, gc, 0, 0, ww, PANEL_HEIGHT);
-
-    for (unsigned int i = 0; i < 4; i++) {
-        if (i == currdeskidx || deskhasurgn(&desktops[i])) {
-            XSetForeground(dis, gc, deskhasurgn(&desktops[i]) ? ((i == currdeskidx) ? win_focus_urgn : win_unfocus_urgn) : win_focus);
-            XFillRectangle(dis, pm, gc, i * PANEL_HEIGHT, 0, PANEL_HEIGHT, PANEL_HEIGHT);
-        } else {
-            XSetForeground(dis, gc, win_unfocus);
-            XFillRectangle(dis, pm, gc, i * PANEL_HEIGHT, 0, PANEL_HEIGHT, PANEL_HEIGHT);
-        }
-        XSetForeground(dis, gc, fgcol);
-        XDrawString(dis, pm, gc, i * PANEL_HEIGHT + PANELSTARTOFST, PANEL_HEIGHT - PANELSTARTOFST, ITOA(i+1), strlen(ITOA(i+1)));
+    for (int i = 0; i < DESKNUM; i++) {
+        printf(" %d:%d:%d", desktops[i].head != NULL, deskhasurgn(&desktops[i]), desktops[i].sbar);
     }
 
-#ifdef BADWM_PANEL
-    XSetForeground(dis, gc, win_unfocus);
-    XFillRectangle(dis, pm, gc, ww - (9 * PANEL_HEIGHT) - PANELSTARTOFST, 0, PANELSTARTOFST + (9 * PANEL_HEIGHT), PANEL_HEIGHT);
-
-    time_t timer;
-    char buffer[20];
-    struct tm* tm_info;
-    timer = time(NULL);
-    tm_info = localtime(&timer);
-    strftime(buffer, 22, "%H:%M:%S %d.%m.%Y", tm_info);
-    XSetForeground(dis, gc, fgcol);
-    XDrawString(dis, pm, gc, ww - (9 * PANEL_HEIGHT), PANEL_HEIGHT - PANELSTARTOFST, buffer, 19);
-
-    XLockDisplay(dis);
-    XCopyArea(dis, pm, bar, gc, 0, 0, ww, PANEL_HEIGHT, 0, 0);
-    XSync(dis, False);
-    XUnlockDisplay(dis);
-#endif
+    printf("\n");
+    fflush(stdout);
 }
 
 /**
@@ -956,16 +883,11 @@ int xerrorstart(__attribute__((unused)) Display *dis, __attribute__((unused)) XE
 int main(int argc, char const *argv[]) {
     if (argc == 2 && !strncmp(argv[1], "-v", 3))
         errx(EXIT_SUCCESS, "badwm - The small, fast window manager");
-#ifdef BADWM_PANEL
-    XInitThreads();
-#endif
     if(!(dis = XOpenDisplay(NULL))) errx(EXIT_FAILURE, "CRITICAL: Could not open X Display - terminating!");
+
     initwm();
-#ifdef BADWM_PANEL
-    initbar();
-#endif
-    loadfont();
     runwm();
+
     cleanup();
     XCloseDisplay(dis);
     return retval;

@@ -15,11 +15,12 @@
 
 /** generic settings **/
 #define MASTER_SIZE     0.55       /* percent (:100) the master window takes up of the screen space */
+#define DESKNUM         4
 
 #define TOP_PANEL       False     /* False means panel is on bottom */
 #define PANEL_HEIGHT    24        /* 0 for no space for panel, thus no panel */
 #define PANEL_INTERVAL	600	  /* milliseconds to wait after redrawing the bar when no event has happened. this is to save cpu. */
-/* #define BADWM_PANEL		  /* if defined, badwm draws a simple panel showing the time */
+// #define BADWM_PANEL		  /* if defined, badwm draws a simple panel showing the time */
 
 #define FOLLOW_MOUSE    True      /* focus the window the mouse just entered */
 #define BSTACK          False     /* set to true for bottom stack */
@@ -78,8 +79,9 @@ static Key keys[] = {
     {  MOD_K,             XK_r,          spawn,             {.com = filecmd}},
 /*    {  MOD_K,             XK_m,          spawn,             {.com = mtrxcmd}}, */
     {  MOD_K,             XK_h,          spawn,             {.com = htopcmd}},
-    {  MOD_K              XK_a           resize_master      {.v = -0.05f}},
-    {  MOD_K              XK_s           resize_master      {.v =  0.05f}},
+    {  MOD_K,             XK_a,          resize_master,     {.f = -0.05f}},
+    {  MOD_K,             XK_s,          resize_master,     {.f =  0.05f}},
+    {  MOD_K,             XK_p,          toggle_bar,        {NULL}},
        DESKTOPCHANGE(     XK_F1,                            0)
        DESKTOPCHANGE(     XK_F2,                            1)
        DESKTOPCHANGE(     XK_F3,                            2)
