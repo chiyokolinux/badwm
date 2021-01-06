@@ -788,26 +788,49 @@ void stack(int x, int y, int w, int h, const Desktop *d) {
     Client *c = NULL, *t = NULL; Bool b = BSTACK;
     int n = 0, p = 0, z = (b ? w:h), ma = (b ? h:w) * MASTER_PERCENT + d->masz;
 
-    for (t = d->head; t; t = t->next) if (!ISFFT(t)) { if (c) ++n; else c = t; }
+    for (t = d->head; t; t = t->next) {
+	    if (!ISFFT(t)) {
+		    if (c)
+			    ++n;
+			else
+			    c = t;
+		}
+	}
 
     if (c && !n) XMoveResizeWindow(dis, c->win, x + GAPS, y + GAPS,
-                w - 2*(BORDER_SIZE + GAPS), h - 2*(BORDER_SIZE + GAPS));
-    if (!c || !n) return; else if (n > 1) { p = (z - d->sasz)%n + d->sasz; z = (z - d->sasz)/n; }
+								   w - 2*(BORDER_SIZE + GAPS), h - 2*(BORDER_SIZE + GAPS));
+    if (!c || !n) {
+	    return;
+    } else if (n > 1) {
+	    p = (z - d->sasz)%n + d->sasz;
+		z = (z - d->sasz)/n;
+	}
 
-    if (b) XMoveResizeWindow(dis, c->win, x + GAPS, y + GAPS,
-        w - 2*(BORDER_SIZE + GAPS), ma - 2*(BORDER_SIZE + GAPS));
-    else   XMoveResizeWindow(dis, c->win, x + GAPS, y + GAPS,
-        ma - 2*(BORDER_SIZE + GAPS), h - 2*(BORDER_SIZE + GAPS));
+    if (b) {
+	    XMoveResizeWindow(dis, c->win, x + GAPS, y + GAPS,
+						  w - 2*(BORDER_SIZE + GAPS), ma - 2*(BORDER_SIZE + GAPS));
+    } else {
+	    XMoveResizeWindow(dis, c->win, x + GAPS, y + GAPS,
+						  ma - 2*(BORDER_SIZE + GAPS), h - 2*(BORDER_SIZE + GAPS));
+	}
 
     for (c = c->next; c && ISFFT(c); c = c->next);
     int ch = z - 2*BORDER_SIZE - GAPS, cw = (b ? h:w) - 2*BORDER_SIZE - ma - GAPS;
-    if (b) XMoveResizeWindow(dis, c->win, x += GAPS, y += ma, ch - GAPS + p, cw);
-    else   XMoveResizeWindow(dis, c->win, x += ma, y += GAPS, cw, ch - GAPS + p);
 
-    for (b ? (x += z+p-GAPS):(y += z+p-GAPS), c = c->next; c; c = c->next) {
+	if (b)
+	    XMoveResizeWindow(dis, c->win, x += GAPS, y += ma, ch - GAPS + p, cw);
+    else
+	    XMoveResizeWindow(dis, c->win, x += ma, y += GAPS, cw, ch - GAPS + p);
+
+    for (b ? (x += z+p-GAPS) : (y += z+p-GAPS), c = c->next; c; c = c->next) {
         if (ISFFT(c)) continue;
-        if (b) { XMoveResizeWindow(dis, c->win, x, y, ch, cw); x += z; }
-        else   { XMoveResizeWindow(dis, c->win, x, y, cw, ch); y += z; }
+        if (b) {
+		    XMoveResizeWindow(dis, c->win, x, y, ch, cw);
+			x += z;
+		} else {
+		    XMoveResizeWindow(dis, c->win, x, y, cw, ch);
+			y += z;
+		}
     }
 }
 
