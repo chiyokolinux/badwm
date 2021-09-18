@@ -89,8 +89,7 @@ typedef struct {
  * isurgn  - set if win is urgent
  * isfull  - set if win is fullscreen
  * isfloat - set if win should float (e.g. tile() ignore flag)
- * istrans - set if win received the wrong gender on creation
- *           jk, set if win is transient
+ * istrans - set if win is transient
  * win     - client window
 **/
 typedef struct Client {
