@@ -974,13 +974,23 @@ Bool deskhasurgn(Desktop *d) {
 **/
 void printbar() {
     /**
-     * $DESKNUM_TOTAL:$DESKFOCUS $($HASWIN:$HASURGN:$SHOWBAR)[for desk in desktops]
+     * $DESKNUM_TOTAL:$DESKFOCUS $($HASWIN:$HASURGN:$SHOWBAR:$TITLE::et::)[for desk in desktops]
     **/
 
     printf("%d:%d", DESKNUM, currdeskidx);
 
     for (int i = 0; i < DESKNUM; i++) {
-        printf(" %d:%d:%d", desktops[i].head != NULL, deskhasurgn(&desktops[i]), desktops[i].sbar);
+        if (&desktops[i]->curr) {
+            char **winname;
+            if (XFetchName(dis, &desktops[i]->curr, winname)) {
+                printf(" %d:%d:%d:%.48s::et::", desktops[i].head != NULL, deskhasurgn(&desktops[i]), desktops[i].sbar, *winname);
+                XFree(winname);
+            } else {
+                printf(" %d:%d:%d:[untitled]::et::", desktops[i].head != NULL, deskhasurgn(&desktops[i]), desktops[i].sbar);
+            }
+        } else {
+            printf(" %d:%d:%d:badwm::et::", desktops[i].head != NULL, deskhasurgn(&desktops[i]), desktops[i].sbar);
+        }
     }
 
     putchar('\n');
