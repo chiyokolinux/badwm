@@ -358,6 +358,8 @@ void destroynotify(XEvent *e) {
 /**
  * when the mouse pointer enters a Client's region,
  * focus that client
+ * no check for FOLLOW_MOUSE because if it is false,
+ * no handler will have been added for it in the first place
 **/
 void enternotify(XEvent *e) {
     Desktop *d = NULL; Client *c = NULL, *p = NULL;
@@ -411,14 +413,21 @@ void focus(Client *c, Desktop *d) {
      * num of n:all fl:fullscreen ft:floating/transient windows
     **/
     int n = 0, fl = 0, ft = 0;
-    for (c = d->head; c; c = c->next, ++n) if (ISFFT(c)) { fl++; if (!c->isfull) ft++; }
+    for (c = d->head; c; c = c->next, ++n) {
+        if (ISFFT(c)) {
+            fl++;
+            if (!c->isfull)
+                ft++;
+        }
+    }
     Window w[n];
     w[ft] = d->curr->win;
     for (fl += !ISFFT(d->curr) ? 1:0, c = d->head; c; c = c->next) {
         XSetWindowBorder(dis, c->win, c == d->curr ? win_focus:win_unfocus);
         XSetWindowBorderWidth(dis, c->win, c->isfull || (!ISFFT(c) &&
             (d->head->isfull || !d->head->next)) ? 0:BORDER_SIZE);
-        if (c != d->curr) w[c->isfull ? --fl:ISFFT(c) ? --ft:--n] = c->win;
+        if (c != d->curr)
+            w[c->isfull ? --fl:ISFFT(c) ? --ft:--n] = c->win;
     }
     XRestackWindows(dis, w, LENGTH(w));
 
@@ -434,7 +443,8 @@ void focus(Client *c, Desktop *d) {
 **/
 void focusin(XEvent *e) {
     Desktop *d = &desktops[currdeskidx];
-    if (d->curr && d->curr->win != e->xfocus.window) focus(d->curr, d);
+    if (d->curr && d->curr->win != e->xfocus.window)
+        focus(d->curr, d);
 }
 
 /**
