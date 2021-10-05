@@ -42,7 +42,7 @@
 #define ROOTMASK        SubstructureRedirectMask|ButtonPressMask|SubstructureNotifyMask|PropertyChangeMask
 #define ITOA(n)         my_itoa((char [3]) { 0 }, (n) )
 
-enum { WM_PROTOCOLS, WM_DELETE_WINDOW, WM_COUNT };
+enum { WM_PROTOCOLS, WM_DELETE_WINDOW, WM_NAME, WM_COUNT };
 enum { NET_SUPPORTED, NET_FULLSCREEN, NET_WM_STATE, NET_ACTIVE, NET_WM_NAME, NET_COUNT };
 
 /**
@@ -740,6 +740,7 @@ void initwm(void) {
     /* init wm atoms */
     wmatoms[WM_PROTOCOLS]      = XInternAtom(dis, "WM_PROTOCOLS",     False);
     wmatoms[WM_DELETE_WINDOW]  = XInternAtom(dis, "WM_DELETE_WINDOW", False);
+    wmatoms[WM_NAME]           = XInternAtom(dis, "WM_NAME",          False);
     netatoms[NET_SUPPORTED]    = XInternAtom(dis, "_NET_SUPPORTED",   False);
     netatoms[NET_WM_STATE]     = XInternAtom(dis, "_NET_WM_STATE",    False);
     netatoms[NET_WM_NAME]      = XInternAtom(dis, "_NET_WM_NAME",     False);
@@ -752,6 +753,11 @@ void initwm(void) {
     XChangeProperty(dis, root, netatoms[NET_WM_NAME], utf8_atom_type, 8, PropModeReplace, (unsigned char *)"badwm", 6);
     /* tell the X Server that we support all the netatoms we have in netatoms[] */
     XChangeProperty(dis, root, netatoms[NET_SUPPORTED], XA_ATOM, 32, PropModeReplace, (unsigned char *)netatoms, NET_COUNT);
+
+    /* set WM_NAME */
+    XTextProperty wmname;
+    XStringListToTextProperty("badwm", 1, &wmname);
+    XSetWMName(dis, w, wmname);
 
     /* init error handler & input */
     XSetErrorHandler(xerrorstart);
