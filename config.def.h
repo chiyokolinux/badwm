@@ -17,6 +17,8 @@
 #define MASTER_SIZE     0.55       /* percent (:100) the master window takes up of the screen space */
 #define DESKNUM         4
 
+#define TERMINAL        "urxvt"
+
 #define TOP_PANEL       False     /* False means panel is on bottom */
 #define PANEL_HEIGHT    24        /* 0 for no space for panel, thus no panel */
 
@@ -48,11 +50,10 @@ static const AppRule rules[] = { \
  * custom commands
  * must always end with ', NULL };'
  */
-static const char *termcmd[] = { "urxvt",                                                                              NULL };
+static const char *termcmd[] = { TERMINAL,                                                                             NULL };
 static const char *menucmd[] = { "dmenu_run", "-nb", "#282828", "-nf", "#928374", "-sb", "#3c3836", "-sf", "#a89984",  NULL };
-static const char *filecmd[] = { "urxvt", "-e", "ranger",                                                              NULL };
-/* static const char *mtrxcmd[] = { "urxvt", "-e", "cmatrix",                                                             NULL }; cmatrix in default config?? why?? */
-static const char *htopcmd[] = { "urxvt", "-e", "htop",                                                                NULL };
+static const char *filecmd[] = { TERMINAL, "-e", "ranger",                                                             NULL };
+static const char *htopcmd[] = { TERMINAL, "-e", "htop",                                                               NULL };
 
 #define DESKTOPCHANGE(K,N) \
     {  MOD_K,             K,              change_desktop, {.i = N}}, \
