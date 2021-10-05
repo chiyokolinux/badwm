@@ -19,20 +19,17 @@
 
 #define TOP_PANEL       False     /* False means panel is on bottom */
 #define PANEL_HEIGHT    24        /* 0 for no space for panel, thus no panel */
-#define PANEL_INTERVAL	600	  /* milliseconds to wait after redrawing the bar when no event has happened. this is to save cpu. */
-// #define BADWM_PANEL		  /* if defined, badwm draws a simple panel showing the time */
 
 #define FOLLOW_MOUSE    True      /* focus the window the mouse just entered */
 #define BSTACK          False     /* set to true for bottom stack */
 
 #define BORDER_SIZE     2         /* window border size in pixels */
-#define FOCUS           "#ebdbb2" /* focused window border/focused workspace bar color    another alternative: 0e8fff*/
-#define UNFOCUS         "#3c3836" /* unfocused window border/unfocused workspace bar color  */
-#define URGENTFOCUS     "#fb4934" /* focused urgent window border/bar bg color */
-#define URGENTUNFOCUS   "#cc241d" /* unfocused urgent window border/bar bg color */
-#define BACKGROUNDCOL   "#282828" /* used for bar background */
+#define FOCUS           "#ebdbb2" /* focused window border color  another alternative: 0e8fff*/
+#define UNFOCUS         "#3c3836" /* unfocused window border color  */
+#define URGENTFOCUS     "#fb4934" /* focused urgent window border bg color */
+#define URGENTUNFOCUS   "#cc241d" /* unfocused urgent window border bg color */
+#define BACKGROUNDCOL   "#282828" /* used for background */
 #define FOREGROUNDCOL   "#83a598" /* used for all the text */
-#define PANELFONT       "-*-courier-bold-r-normal-*-*-140-*-*-*-*-*-*"  /* bar text font */
 #define PANELSTARTOFST  6         /* space between top left corner and text start */
 
 /**
