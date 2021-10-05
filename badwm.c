@@ -974,7 +974,8 @@ Bool deskhasurgn(Desktop *d) {
 **/
 void printbar() {
     /**
-     * $DESKNUM_TOTAL:$DESKFOCUS $($HASWIN:$HASURGN:$SHOWBAR:$TITLE::et::)[for desk in desktops]
+     * $DESKNUM_TOTAL:$DESKFOCUS $($HASWIN:$HASURGN:$SHOWBAR:$TITLE:)[for desk in desktops]
+     * TODO: Output only current win title at end
     **/
 
     printf("%d:%d", DESKNUM, currdeskidx);
@@ -983,13 +984,13 @@ void printbar() {
         if ((&desktops[i])->curr) {
             char **winname = NULL;
             if (XFetchName(dis, (&desktops[i])->curr->win, winname)) {
-                printf(" %d:%d:%d:%.48s::et::", desktops[i].head != NULL, deskhasurgn(&desktops[i]), desktops[i].sbar, *winname);
+                printf(" %d:%d:%d:%.48s:", desktops[i].head != NULL, deskhasurgn(&desktops[i]), desktops[i].sbar, *winname);
                 XFree(winname);
             } else {
-                printf(" %d:%d:%d:[untitled]::et::", desktops[i].head != NULL, deskhasurgn(&desktops[i]), desktops[i].sbar);
+                printf(" %d:%d:%d:[untitled]:", desktops[i].head != NULL, deskhasurgn(&desktops[i]), desktops[i].sbar);
             }
         } else {
-            printf(" %d:%d:%d:badwm::et::", desktops[i].head != NULL, deskhasurgn(&desktops[i]), desktops[i].sbar);
+            printf(" %d:%d:%d:badwm:", desktops[i].head != NULL, deskhasurgn(&desktops[i]), desktops[i].sbar);
         }
     }
 
