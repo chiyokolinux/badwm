@@ -230,15 +230,30 @@ Client* addwindow(Window w, Desktop *d) {
  * first maps then unmaps to patch flickers
 **/
 void change_desktop(const Arg *arg) {
-    if (arg->i == currdeskidx || arg->i < 0 || arg->i >= DESKNUM) return;
-    Desktop *d = &desktops[(prevdeskidx = currdeskidx)], *n = &desktops[(currdeskidx = arg->i)];
-    if (n->curr) XMapWindow(dis, n->curr->win);
-    for (Client *c = n->head; c; c = c->next) XMapWindow(dis, c->win);
+    /* sanity checks */
+    if (arg->i == currdeskidx || arg->i < 0 || arg->i >= DESKNUM)
+        return;
+    /* d: prev, n: to_switch_to */
+    Desktop *prevd = &desktops[(prevdeskidx = currdeskidx)], *nextd = &desktops[(currdeskidx = arg->i)];
+    /* map windows, one by one */
+    if (nextd->curr)
+        XMapWindow(dis, nextd->curr->win);
+    for (Client *c = nextd->head; c; c = c->next)
+        XMapWindow(dis, c->win);
     XChangeWindowAttributes(dis, root, CWEventMask, &(XSetWindowAttributes){.do_not_propagate_mask = SubstructureNotifyMask});
-    for (Client *c = d->head; c; c = c->next) if (c != d->curr) XUnmapWindow(dis, c->win);
-    if (d->curr) XUnmapWindow(dis, d->curr->win);
+    /* unmap old windows, one by one */
+    for (Client *c = prevd->head; c; c = c->next) {
+        if (c != prevd->curr)
+            XUnmapWindow(dis, c->win);
+    }
+    if (prevd->curr)
+        XUnmapWindow(dis, prevd->curr->win);
     XChangeWindowAttributes(dis, root, CWEventMask, &(XSetWindowAttributes){.event_mask = ROOTMASK});
-    if (n->head) { tile(n); focus(n->curr, n); }
+    /* tile and focus */
+    if (n->head) {
+        tile(n);
+        focus(n->curr, n);
+    }
     printbar();
 }
 
