@@ -279,18 +279,29 @@ void cleanup(void) {
  * push to stack (e.g. last client)
 **/
 void client_to_desktop(const Arg *arg) {
-    if (arg->i == currdeskidx || arg->i < 0 || arg->i >= DESKNUM || !desktops[currdeskidx].curr) return;
-    Desktop *d = &desktops[currdeskidx], *n = &desktops[arg->i];
-    Client *c = d->curr, *p = prevclient(d->curr, d), *l = prevclient(n->head, n);
+    /* sanity checks */
+    if (arg->i == currdeskidx || arg->i < 0 || arg->i >= DESKNUM || !desktops[currdeskidx].curr)
+        return;
+    Desktop *prevd = &desktops[currdeskidx], *destd = &desktops[arg->i];
+    Client *c = prevd->curr, *p = prevclient(prevd->curr, prevd), *l = prevclient(destd->head, destd);
 
-    if (d->head == c || !p) d->head = c->next; else p->next = c->next;
+    /* remove client from prevd */
+    if (prevd->head == c || !p)
+        prevd->head = c->next;
+    else
+        p->next = c->next;
     c->next = NULL;
     XChangeWindowAttributes(dis, root, CWEventMask, &(XSetWindowAttributes){.do_not_propagate_mask = SubstructureNotifyMask});
-    if (XUnmapWindow(dis, c->win)) focus(d->prev, d);
+    /* unmap window */
+    if (XUnmapWindow(dis, c->win))
+        focus(prevd->prev, prevd);
     XChangeWindowAttributes(dis, root, CWEventMask, &(XSetWindowAttributes){.event_mask = ROOTMASK});
-    if (d->head && !d->head->next) tile(d);
+    /* re-tile prevd */
+    if (prevd->head && !prevd->head->next)
+        tile(prevd);
 
-    focus(l ? (l->next = c):n->head ? (n->head->next = c):(n->head = c), n);
+    /* insert c after l into destd, focus */
+    focus(l ? (l->next = c):destd->head ? (destd->head->next = c):(destd->head = c), destd);
 
     change_desktop(arg);
     printbar();
