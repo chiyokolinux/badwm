@@ -266,8 +266,11 @@ void cleanup(void) {
 
     XUngrabKey(dis, AnyKey, AnyModifier, root);
     XQueryTree(dis, root, &root_return, &parent_return, &children, &nchildren);
-    for (unsigned int i = 0; i < nchildren; i++) deletewindow(children[i]);
-    if (children) XFree(children);
+    /* kill windows */
+    for (unsigned int i = 0; i < nchildren; i++)
+        deletewindow(children[i]);
+    if (children)
+        XFree(children);
     XSync(dis, False);
 }
 
