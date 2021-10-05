@@ -711,15 +711,18 @@ void toggle_bar() {
 void initwm(void) {
     sigchld(0);
 
+    /* get screen & root win */
     const int screen = DefaultScreen(dis);
     root = RootWindow(dis, screen);
 
+    /* init vars */
     ww = XDisplayWidth(dis, screen);
     wh = XDisplayHeight(dis, screen) - PANEL_HEIGHT;
 
     for (unsigned int d = 0; d < DESKNUM; d++)
         desktops[d] = (Desktop){ .sbar = 1 };
 
+    /* get colors */
     win_focus = getcolor(FOCUS, screen);
     win_unfocus = getcolor(UNFOCUS, screen);
     win_focus_urgn = getcolor(URGENTFOCUS, screen);
@@ -727,12 +730,14 @@ void initwm(void) {
     bgcol = getcolor(BACKGROUNDCOL, screen);
     fgcol = getcolor(FOREGROUNDCOL, screen);
 
+    /* get mod keys */
     XModifierKeymap *modmap = XGetModifierMapping(dis);
     for (int k = 0; k < 8; k++) for (int j = 0; j < modmap->max_keypermod; j++)
         if (modmap->modifiermap[modmap->max_keypermod*k + j] == XKeysymToKeycode(dis, XK_Num_Lock))
             numlockmask = (1 << k);
     XFreeModifiermap(modmap);
 
+    /* init wm atoms */
     wmatoms[WM_PROTOCOLS]      = XInternAtom(dis, "WM_PROTOCOLS",     False);
     wmatoms[WM_DELETE_WINDOW]  = XInternAtom(dis, "WM_DELETE_WINDOW", False);
     netatoms[NET_SUPPORTED]    = XInternAtom(dis, "_NET_SUPPORTED",   False);
@@ -748,12 +753,14 @@ void initwm(void) {
     /* tell the X Server that we support all the netatoms we have in netatoms[] */
     XChangeProperty(dis, root, netatoms[NET_SUPPORTED], XA_ATOM, 32, PropModeReplace, (unsigned char *)netatoms, NET_COUNT);
 
+    /* init error handler & input */
     XSetErrorHandler(xerrorstart);
     XSelectInput(dis, root, ROOTMASK);
     XSync(dis, False);
     XSetErrorHandler(xerror);
     XSync(dis, False);
 
+    /* init key handlers & change to first desktop */
     grabkeys();
     change_desktop(&(Arg){.i = 0});
 }
