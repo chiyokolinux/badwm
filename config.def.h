@@ -18,6 +18,7 @@
 #define DESKNUM         4
 
 #define TERMINAL        "urxvt"
+#define ADD_AT_BOTTOM             /* define to add new windows to the bottom of the stack */
 
 #define TOP_PANEL       False     /* False means panel is on bottom */
 #define PANEL_HEIGHT    24        /* 0 for no space for panel, thus no panel */

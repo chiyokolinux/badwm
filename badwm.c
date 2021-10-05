@@ -202,9 +202,22 @@ static void (*events[LASTEvent])(XEvent *e) = {
 **/
 Client* addwindow(Window w, Desktop *d) {
     Client *c = NULL;
-    if (!(c = (Client *)calloc(1, sizeof(Client)))) err(EXIT_FAILURE, "cannot allocate client");
-    if (!d->head) d->head = c;
-    else { c->next = d->head; d->head = c; }
+    if (!(c = (Client *)calloc(1, sizeof(Client))))
+        err(EXIT_FAILURE, "cannot allocate client");
+    if (!d->head)
+        d->head = c;
+#ifdef ADD_AT_BOTTOM
+    /* prevclient(d->head, d) returns last window */
+    else if (d->head->next)
+        prevclient(d->head, d)->next = c;
+    else
+        d->head->next = c;
+#else
+    else {
+        c->next = d->head;
+        d->head = c;
+    }
+#endif
 
     XSelectInput(dis, (c->win = w), PropertyChangeMask|FocusChangeMask|(FOLLOW_MOUSE?EnterWindowMask:0));
     printbar();
