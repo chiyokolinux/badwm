@@ -32,7 +32,6 @@
 #define URGENTUNFOCUS   "#cc241d" /* unfocused urgent window border bg color */
 #define BACKGROUNDCOL   "#282828" /* used for background */
 #define FOREGROUNDCOL   "#83a598" /* used for all the text */
-#define PANELSTARTOFST  6         /* space between top left corner and text start */
 
 /**
  * open applications to specified desktop with specified mode.
