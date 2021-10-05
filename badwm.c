@@ -770,14 +770,10 @@ void initwm(void) {
 **/
 void runwm(void) {
     XEvent ev;
-#ifdef BADWM_PANEL
-    while(running) {
-        while (!XCheckMaskEvent(dis, -1, &ev)) { usleep(PANEL_INTERVAL); }
-        if (events[ev.type]) events[ev.type](&ev);
+    while(running && !XNextEvent(dis, &ev)) {
+        if (events[ev.type])
+            events[ev.type](&ev);
     }
-#else
-    while(running && !XNextEvent(dis, &ev)) if (events[ev.type]) events[ev.type](&ev);
-#endif
 }
 
 /**
