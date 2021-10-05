@@ -507,7 +507,6 @@ void close_win(void) {
  * if override_redirect is set we don't care about what the window wants
  * 
  * move the window to the desktop where is should be (AppRuleExists ? AppRuleDeskIdx : currdeskidx)
- * TODO: set is{float,trans,full}
  * focus the desktop where the window went
 **/
 void maprequest(XEvent *e) {
@@ -517,12 +516,14 @@ void maprequest(XEvent *e) {
     if (wintoclient(w, &c, &d) || (XGetWindowAttributes(dis, w, &wa) && wa.override_redirect)) return;
 
     XClassHint ch = {0, 0};
-    Bool follow = False;
+    Bool follow = False, floating = False;
     int newdsk = currdeskidx;
 
     if (XGetClassHint(dis, w, &ch)) for (unsigned int i = 0; i < LENGTH(rules); i++)
         if (strstr(ch.res_class, rules[i].class) || strstr(ch.res_name, rules[i].class)) {
-            if (rules[i].desktop >= 0 && rules[i].desktop < DESKNUM) newdsk = rules[i].desktop;
+            if (rules[i].desktop >= 0 && rules[i].desktop < DESKNUM)
+                newdsk = rules[i].desktop;
+            floating = rules[i].floating;
             follow = True;
             break;
         }
@@ -530,15 +531,17 @@ void maprequest(XEvent *e) {
     if (ch.res_name) XFree(ch.res_name);
 
     c = addwindow(w, (d = &desktops[newdsk]));
+    c->istrans = XGetTransientForHint(dis, c->win, &w);
+    c->isfloat = floating;
+    /* we devilishly ignore fullscreen requests!
+       someone, please document this later! */
 
-    /*int i;
-    unsigned long l;
-    unsigned char *state = NULL;
-    Atom a;
-    if (state) XFree(state);*/
-
-    if (currdeskidx == newdsk) { if (!ISFFT(c)) tile(d); XMapWindow(dis, c->win); }
-    else if (follow) change_desktop(&(Arg){.i = newdsk});
+    if (currdeskidx == newdsk) {
+        if (!ISFFT(c))
+            tile(d);
+        XMapWindow(dis, c->win);
+    } else if (follow)
+        change_desktop(&(Arg){.i = newdsk});
     focus(c, d);
 }
 
