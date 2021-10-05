@@ -320,9 +320,11 @@ void client_to_desktop(const Arg *arg) {
 void configurerequest(XEvent *e) {
     XConfigureRequestEvent *ev = &e->xconfigurerequest;
     XWindowChanges wc = { ev->x, ev->y, ev->width, ev->height, ev->border_width, ev->above, ev->detail };
-    if (XConfigureWindow(dis, ev->window, ev->value_mask, &wc)) XSync(dis, False);
+    if (XConfigureWindow(dis, ev->window, ev->value_mask, &wc))
+        XSync(dis, False);
     Desktop *d = NULL; Client *c = NULL;
-    if (wintoclient(ev->window, &c, &d)) tile(d);
+    if (wintoclient(ev->window, &c, &d))
+        tile(d);
     printbar();
 }
 
@@ -348,7 +350,8 @@ void deletewindow(Window w) {
 **/
 void destroynotify(XEvent *e) {
     Desktop *d = NULL; Client *c = NULL;
-    if (wintoclient(e->xdestroywindow.window, &c, &d)) removeclient(c, d);
+    if (wintoclient(e->xdestroywindow.window, &c, &d))
+        removeclient(c, d);
     printbar();
 }
 
