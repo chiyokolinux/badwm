@@ -758,6 +758,7 @@ void initwm(void) {
     XTextProperty wmname;
     XStringListToTextProperty("badwm", 1, &wmname);
     XSetWMName(dis, w, wmname);
+    XStoreName(dis, root, "badwm");
 
     /* init error handler & input */
     XSetErrorHandler(xerrorstart);
