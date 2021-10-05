@@ -625,18 +625,20 @@ void propertynotify(XEvent *e) {
     Desktop *d = NULL; Client *c = NULL;
     if (e->xproperty.atom != XA_WM_HINTS || !wintoclient(e->xproperty.window, &c, &d)) return;
 
+    /* get isurgn */
     XWMHints *wmh = XGetWMHints(dis, c->win);
     c->isurgn = (c != desktops[currdeskidx].curr && wmh && (wmh->flags & XUrgencyHint));
     if (c->isurgn) {
         XSetWindowBorder(dis, c->win, c == d->curr ? win_focus_urgn:win_unfocus_urgn);
     }
 
-    if (wmh) XFree(wmh);
+    if (wmh)
+        XFree(wmh);
     printbar();
 }
 
 /**
- * quit badwm
+ * quit badwm (with EXIT_SUCCESS)
 **/
 void quit() {
     retval = 0;
@@ -645,15 +647,25 @@ void quit() {
 
 /**
  * remove a client from a desktop,
- * then retile n stuff
+ * then retile 'n stuff
 **/
 void removeclient(Client *c, Desktop *d) {
     Client **p = NULL;
+    /* check if c is on d */
     for (p = &d->head; *p && (*p != c); p = &(*p)->next);
-    if (!*p) return; else *p = c->next;
-    if (c == d->prev && !(d->prev = prevclient(d->curr, d))) d->prev = d->head;
-    if (c == d->curr || (d->head && !d->head->next)) focus(d->prev, d);
-    tile(d);
+    if (!*p)
+        return;
+    else
+        *p = c->next;
+    /* p is c's successor from now on */
+    /* re-set d->prev if necessary */
+    if (c == d->prev && !(d->prev = prevclient(d->curr, d)))
+        d->prev = d->head;
+    /* if c is focused, focus d->prev */
+    if (c == d->curr || (d->head && !d->head->next))
+        focus(d->prev, d);
+    if (d->head)
+        tile(d);
     free(c);
     printbar();
 }
@@ -663,8 +675,10 @@ void removeclient(Client *c, Desktop *d) {
 **/
 void setfullscreen(Client *c, Desktop *d, Bool fullscrn) {
     c->isfull = fullscrn;
-    if (fullscrn) XMoveResizeWindow(dis, c->win, 0, 0, ww, wh + PANEL_HEIGHT);
-    else tile(d);
+    if (fullscrn)
+        XMoveResizeWindow(dis, c->win, 0, 0, ww, wh + PANEL_HEIGHT);
+    else
+        tile(d);
     XSetWindowBorderWidth(dis, c->win, (c->isfull || !d->head->next ? 0:BORDER_SIZE));
     printbar();
 }
@@ -675,7 +689,9 @@ void setfullscreen(Client *c, Desktop *d, Bool fullscrn) {
 void toggle_fullscreen() {
     Desktop *d = &desktops[currdeskidx];
     Client *c = d->head;
-    if (!d->head) return;
+    /* sanity check */
+    if (!d->head)
+        return;
     setfullscreen(c, d, !c->isfull);
 }
 
@@ -947,7 +963,7 @@ void printbar() {
         printf(" %d:%d:%d", desktops[i].head != NULL, deskhasurgn(&desktops[i]), desktops[i].sbar);
     }
 
-    printf("\n");
+    putchar('\n');
     fflush(stdout);
 }
 
