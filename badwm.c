@@ -41,7 +41,6 @@
 #define ISFFT(c)        (c->isfull || c->isfloat || c->istrans)
 #define ROOTMASK        SubstructureRedirectMask|ButtonPressMask|SubstructureNotifyMask|PropertyChangeMask
 #define ITOA(n)         my_itoa((char [3]) { 0 }, (n) )
-#define MASTER_PERCENT  (MASTER_SIZE + master_mod)
 
 enum { WM_PROTOCOLS, WM_DELETE_WINDOW, WM_COUNT };
 enum { NET_SUPPORTED, NET_FULLSCREEN, NET_WM_STATE, NET_ACTIVE, NET_WM_NAME, NET_COUNT };
@@ -729,10 +728,12 @@ Client* prevclient(Client *c, Desktop *d) {
  * change global master area
 **/
 void resize_master(const Arg *arg) {
-    if (MASTER_SIZE + (master_mod + arg->f) > 0.0f &&
-        MASTER_SIZE + (master_mod + arg->f) < 1.0f) {
-        master_mod += arg->f;
+    Desktop *d = &desktops[currdeskidx];
+    if (MASTER_SIZE + (d->masz + arg->f) > 0.0f &&
+        MASTER_SIZE + (d->masz + arg->f) < 1.0f) {
+        d->masz += arg->f;
     }
+    tile(&desktops[currdeskidx]);
 }
 
 /**
@@ -785,7 +786,7 @@ void fullscreen(int x, int y, int w, int h, const Desktop *d) {
 **/
 void stack(int x, int y, int w, int h, const Desktop *d) {
     Client *c = NULL, *t = NULL; Bool b = BSTACK;
-    int n = 0, p = 0, z = (b ? w:h), ma = (b ? h:w) * MASTER_PERCENT + d->masz;
+    int n = 0, p = 0, z = (b ? w:h), ma = (b ? h:w) * (MASTER_SIZE + d->masz);
 
     for (t = d->head; t; t = t->next) {
         if (!ISFFT(t)) {
