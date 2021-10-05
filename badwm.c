@@ -80,6 +80,7 @@ typedef struct {
 typedef struct {
     const char *class;
     const int desktop;
+    const Bool floating;
 } AppRule;
 
 /**
@@ -174,7 +175,6 @@ static void grabkeys(void);
  * wm|netatoms - wm/netatoms that are handled (ICCCM/EWMH)
  * utf8_atom_t - type for utf8 string atoms
  * desktops    - array of handled desktops
- * master_mod  - global master modifier
 **/
 static Bool running = True;
 static int wh, ww, currdeskidx, prevdeskidx, retval = 0;
@@ -183,7 +183,6 @@ static Display *dis;
 static Window root;
 static Atom wmatoms[WM_COUNT], netatoms[NET_COUNT], utf8_atom_type;
 static Desktop desktops[DESKNUM];
-static float master_mod = 0.0f;
 
 /**
  * event handler mapping
@@ -250,9 +249,9 @@ void change_desktop(const Arg *arg) {
         XUnmapWindow(dis, prevd->curr->win);
     XChangeWindowAttributes(dis, root, CWEventMask, &(XSetWindowAttributes){.event_mask = ROOTMASK});
     /* tile and focus */
-    if (n->head) {
-        tile(n);
-        focus(n->curr, n);
+    if (nextd->head) {
+        tile(nextd);
+        focus(nextd->curr, nextd);
     }
     printbar();
 }
@@ -756,8 +755,9 @@ void initwm(void) {
 
     /* set WM_NAME */
     XTextProperty wmname;
-    XStringListToTextProperty("badwm", 1, &wmname);
-    XSetWMName(dis, w, wmname);
+    char *name = "badwm";
+    XStringListToTextProperty(&name, 1, &wmname);
+    XSetWMName(dis, root, &wmname);
     XStoreName(dis, root, "badwm");
 
     /* init error handler & input */
@@ -980,9 +980,9 @@ void printbar() {
     printf("%d:%d", DESKNUM, currdeskidx);
 
     for (int i = 0; i < DESKNUM; i++) {
-        if (&desktops[i]->curr) {
-            char **winname;
-            if (XFetchName(dis, &desktops[i]->curr, winname)) {
+        if ((&desktops[i])->curr) {
+            char **winname = NULL;
+            if (XFetchName(dis, (&desktops[i])->curr->win, winname)) {
                 printf(" %d:%d:%d:%.48s::et::", desktops[i].head != NULL, deskhasurgn(&desktops[i]), desktops[i].sbar, *winname);
                 XFree(winname);
             } else {

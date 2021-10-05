@@ -39,8 +39,8 @@
  * if desktop is negative, then current is assumed
  */
 static const AppRule rules[] = { \
-    /*  class     desktop */
-    { "Firefox",     2 },
+    /*  class        desktop   floating */
+    { "Firefox",     2,        False    },
 };
 
 /* helper for spawning shell commands */
