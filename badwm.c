@@ -781,9 +781,14 @@ void runwm(void) {
 **/
 void swap_master(void) {
     Desktop *d = &desktops[currdeskidx];
-    if (!d->curr || !d->head->next) return;
-    if (d->curr == d->head) move_down();
-    else while (d->curr != d->head) move_up();
+    if (!d->curr || !d->head->next)
+        return;
+    if (d->curr == d->head)
+        move_down();
+    else
+        while (d->curr != d->head) {
+            move_up();
+        }
     focus(d->head, d);
 }
 
@@ -792,7 +797,8 @@ void swap_master(void) {
 **/
 unsigned long getcolor(const char* color, const int screen) {
     XColor c; Colormap map = DefaultColormap(dis, screen);
-    if (!XAllocNamedColor(dis, map, color, &c, &c)) err(EXIT_FAILURE, "cannot allocate color");
+    if (!XAllocNamedColor(dis, map, color, &c, &c))
+        err(EXIT_FAILURE, "cannot allocate color");
     return c.pixel;
 }
 
@@ -800,8 +806,10 @@ unsigned long getcolor(const char* color, const int screen) {
  * SIGCHLD handler
 **/
 void sigchld(__attribute__((unused)) int sig) {
-    if (signal(SIGCHLD, sigchld) != SIG_ERR) while(0 < waitpid(-1, NULL, WNOHANG));
-    else err(EXIT_FAILURE, "cannot install SIGCHLD handler");
+    if (signal(SIGCHLD, sigchld) != SIG_ERR)
+        while(0 < waitpid(-1, NULL, WNOHANG));
+    else
+        err(EXIT_FAILURE, "cannot install SIGCHLD handler");
 }
 
 /**
@@ -809,12 +817,14 @@ void sigchld(__attribute__((unused)) int sig) {
 **/
 Client* prevclient(Client *c, Desktop *d) {
     Client *p = NULL;
-    if (c && d->head && d->head->next) for (p = d->head; p->next && p->next != c; p = p->next);
+    if (c && d->head && d->head->next) {
+        for (p = d->head; p->next && p->next != c; p = p->next);
+    }
     return p;
 }
 
 /**
- * change global master area
+ * change current desktop-local master area
 **/
 void resize_master(const Arg *arg) {
     Desktop *d = &desktops[currdeskidx];
