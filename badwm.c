@@ -455,9 +455,10 @@ void grabkeys(void) {
     XUngrabKey(dis, AnyKey, AnyModifier, root);
     unsigned int k, m, modifiers[] = { 0, LockMask, numlockmask, numlockmask|LockMask };
 
-    for (k = 0, m = 0; k < LENGTH(keys); k++, m = 0)
+    for (k = 0, m = 0; k < LENGTH(keys); k++, m = 0) {
         while ((code = XKeysymToKeycode(dis, keys[k].keysym)) && m < LENGTH(modifiers))
             XGrabKey(dis, code, keys[k].mod|modifiers[m++], root, True, GrabModeAsync, GrabModeAsync);
+    }
 }
 
 /**
@@ -466,9 +467,12 @@ void grabkeys(void) {
 **/
 void keypress(XEvent *e) {
     KeySym keysym = XkbKeycodeToKeysym(dis, e->xkey.keycode, 0, 0);
-    for (unsigned int i = 0; i < LENGTH(keys); i++)
-        if (keysym == keys[i].keysym && CLEANMASK(keys[i].mod) == CLEANMASK(e->xkey.state))
-            if (keys[i].func) keys[i].func(&keys[i].arg);
+    for (unsigned int i = 0; i < LENGTH(keys); i++) {
+        if (keysym == keys[i].keysym && CLEANMASK(keys[i].mod) == CLEANMASK(e->xkey.state)) {
+            if (keys[i].func)
+                keys[i].func(&keys[i].arg);
+        }
+    }
 }
 
 /**
@@ -478,14 +482,22 @@ void keypress(XEvent *e) {
 **/
 void close_win(void) {
     Desktop *d = &desktops[currdeskidx];
-    if (!d->curr) return;
+    /* sanity check */
+    if (!d->curr)
+        return;
 
     Atom *prot = NULL; int n = -1;
+    /* check for WM_DELETE_WINDOW support */
     if (XGetWMProtocols(dis, d->curr->win, &prot, &n))
         while(--n >= 0 && prot[n] != wmatoms[WM_DELETE_WINDOW]);
-    if (n < 0) { XKillClient(dis, d->curr->win); removeclient(d->curr, d); }
-    else deletewindow(d->curr->win);
-    if (prot) XFree(prot);
+    if (n < 0) {
+        /* no support? kill and remove client */
+        XKillClient(dis, d->curr->win);
+        removeclient(d->curr, d);
+    } else /* support? nicely close (will NOT work for frozen programs) */
+        deletewindow(d->curr->win);
+    if (prot)
+        XFree(prot);
     printbar();
 }
 

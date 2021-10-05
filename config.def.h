@@ -75,7 +75,6 @@ static Key keys[] = {
     {  MOD_K,             XK_Return,     spawn,             {.com = termcmd}},
     {  MOD_K,             XK_d,          spawn,             {.com = menucmd}},
     {  MOD_K,             XK_r,          spawn,             {.com = filecmd}},
-/*    {  MOD_K,             XK_m,          spawn,             {.com = mtrxcmd}}, */
     {  MOD_K,             XK_h,          spawn,             {.com = htopcmd}},
     {  MOD_K,             XK_a,          resize_master,     {.f = -0.05f}},
     {  MOD_K,             XK_s,          resize_master,     {.f =  0.05f}},
